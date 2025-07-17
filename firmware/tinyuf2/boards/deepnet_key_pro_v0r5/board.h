@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef ADAFRUIT_METRO_ESP32S3_H_
-#define ADAFRUIT_METRO_ESP32S3_H_
+#ifndef DEEPNET_KEY_PRO_V0
+#define DEEPNET_KEY_PRO_V0
 
 //--------------------------------------------------------------------+
 // Button
@@ -61,7 +61,7 @@
 //--------------------------------------------------------------------+
 
 #define USB_VID 0x239A
-#define USB_PID 0x0145
+#define USB_PID 0x0058
 #define USB_MANUFACTURER "DEEPNET"
 #define USB_PRODUCT "DN KEY PRO v0"
 

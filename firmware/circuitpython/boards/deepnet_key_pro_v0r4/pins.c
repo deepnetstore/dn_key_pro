@@ -22,9 +22,9 @@ static const mp_rom_map_elem_t board_module_globals_table[] = {
     {MP_OBJ_NEW_QSTR(MP_QSTR_MOSI), MP_ROM_PTR(&pin_GPIO12)},
     {MP_OBJ_NEW_QSTR(MP_QSTR_SCK), MP_ROM_PTR(&pin_GPIO13)},
 
-    // UART
-    {MP_OBJ_NEW_QSTR(MP_QSTR_DEBUG_RX), MP_ROM_PTR(&pin_GPIO44)},
-    {MP_OBJ_NEW_QSTR(MP_QSTR_DEBUG_TX), MP_ROM_PTR(&pin_GPIO43)},
+    // UART [ unused in v0r4 & v0r5 ]
+    // {MP_OBJ_NEW_QSTR(MP_QSTR_DEBUG_RX), MP_ROM_PTR(&pin_GPIO44)},
+    // {MP_OBJ_NEW_QSTR(MP_QSTR_DEBUG_TX), MP_ROM_PTR(&pin_GPIO43)},
 
     // SD CARD PINS
     {MP_OBJ_NEW_QSTR(MP_QSTR_SD_DET_A), MP_ROM_PTR(&pin_GPIO1)},
@@ -53,7 +53,7 @@ static const mp_rom_map_elem_t board_module_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_HOST_SS), MP_ROM_PTR(&pin_GPIO21)},
     {MP_ROM_QSTR(MP_QSTR_USB_INT), MP_ROM_PTR(&pin_GPIO15)},
 
-    // Speaker Pins
+    // Speaker Pins [ unused in v0r4 &v0r5 ]
     // {MP_ROM_QSTR(MP_QSTR_SPK_LRCLK), MP_ROM_PTR(&pin_GPIO39)},
     // {MP_ROM_QSTR(MP_QSTR_SPK_DIN), MP_ROM_PTR(&pin_GPIO40)},
     // {MP_ROM_QSTR(MP_QSTR_SPK_BCLK), MP_ROM_PTR(&pin_GPIO41)},
