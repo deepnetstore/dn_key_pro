@@ -1,42 +1,10 @@
 '''
-AI Duck.
-
-The structure and architecture of this code was initially writen by Gemini AI
-using this prompt:
-
-[start of prompt] 
-"
-Hey Gem, I'm working on a circuitpython project using 3 buttons, an SD card, and a 
-TFT display with 240 width and 135 height. I need help making a menu system. Can you 
-show me code written with Circuitpython to create a menu system using a simple 3 
-button input?
-please use asyncio and break everything into simple classes, including the buttons 
-and use basic enumerations defined as class variables within each class.
-for example,
-`class Button:
-    button_up = 0
-    button_enter = 1
-    button_down = 2
-    buttons = [button_up, button_enter, button_down]
-def __init__(self):
-`
-for each item in the list of menu items, when the button enter is pressed, the 
-menu or command should be run coresponding to the chosen menu item.
-please add classes for the items in the menu list, and provide a class object 
-definition to run a command or load a new menu.
-" 
-[end of prompt]
-
-Of course it didn't get everything right but it did provide a decently usable 
-foundation to build on.
-
-I plan to have Gemini AI write any new code implementation as a class definition 
-and then fix what doesn't work myself and maybe with slight help from 'Gem'.
+DN Duck.
 
 This code uses a modified Adafruit Ducky Script circuitpython code.
 It has been adapted to report the 'percentage' complete of the Ducky script running.
-It will report back an Integer value from 0-100, 100 being the completed value.
-This value is fed into the Progressbar drawn just before running the ducky scripts 
+It will report back an Integer value from 0-100; 100 being the completed value.
+This value is fed into the Progressbar to be drawn just before running the ducky scripts 
 HID command.
 '''
 
@@ -45,17 +13,19 @@ import time
 import board
 import busio
 import pwmio
-import asyncio
 import storage
-import sdcardio
-# import adafruit_sdcard
+import array
+import adafruit_sdcard
 import digitalio
 import displayio
 import terminalio
+import sys
+import supervisor
+import adafruit_max1704x
+import neopixel
 
-import audiomixer
-import audiocore
-import audiobusio
+import max3421e
+import usb
 
 from adafruit_display_text import label
 from adafruit_st7789 import ST7789
@@ -65,20 +35,32 @@ try:
 except ImportError:
     from displayio import FourWire
 
-import adafruit_max1704x
+import usb_hid
+from adafruit_hid.keyboard import Keyboard
+from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 
-time.sleep(0.2)
+from dn_duck.dn_duck import Ducky
+
+from adafruit_progressbar.horizontalprogressbar import (
+    HorizontalProgressBar,
+    HorizontalFillDirection,
+)
+
+# import asyncio  # having problems
+# import sdcardio  # didn't seem to work.. 
+
+
+pixels = neopixel.NeoPixel(board.NEOPIXELS, 4)
+pixels.fill(0)
 
 # LOAD TFT STUFF FIRST!!!
-
 # TFT Configuration
 WIDTH = 320
 HEIGHT = 172
 
 # Initialize display
-TFT_SIZE = 147
 BL_PWM_MIN = 65534
-BL_PWM_MAX = int(65534 * 3 / 8)
+BL_PWM_MAX = 0
 
 BL_PWM_ON = BL_PWM_MAX
 BL_PWM_OFF = BL_PWM_MIN
@@ -98,13 +80,53 @@ spi.unlock()
 displayio.release_displays()
 display_bus = FourWire(spi, command=tft_dc, chip_select=tft_cs)
 display = ST7789(display_bus, rotation=270, width=WIDTH, height=HEIGHT, colstart=34)
-display_group = displayio.Group()
+
+print("Initializing DEEPNET Key Pro V0\n")
+
+# screen fade in
+for i in range(BL_PWM_MIN, BL_PWM_MAX, -655):
+    tft_backlight.duty_cycle = i
+    time.sleep(0.01)
+
+print("")
+
+cs = board.USB_SS
+irq = board.USB_INT
+
+max3421e = max3421e.Max3421E(spi, chip_select=cs, irq=irq)
+
+device = None
+vid = None
+pid = None
+
+# max3421e test
+def test_max3421e():
+    global device, vid, pid
+    print("Finding devices:")
+    time.sleep(0.5)
+    for device in usb.core.find(find_all=True):
+        print(f"{device.idVendor:04x}:{device.idProduct:04x}: {device.manufacturer} {device.product}")
+        if device == None:
+            return None
+        vid = device.idVendor
+        pid = device.idProduct
+        device = usb.core.find(idVendor=vid, idProduct=pid)
+        time.sleep(0.1)
+        device.set_configuration()
+        print(f"{device.idVendor:04x}:{device.idProduct:04x}: {device.manufacturer} {device.product}")
+        # Test to see if the kernel is using the device and detach it.
+        if device.is_kernel_driver_active(0):
+            device.detach_kernel_driver(0)
+        return device
+    return None
+
+# uncomment to Run the test function
+# device = test_max3421e()
 
 i2c_ok = False
 
 try:
     i2c = board.I2C()  # uses board.SCL and board.SDA
-    # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
     max17 = adafruit_max1704x.MAX17048(i2c)
 
     print(
@@ -130,9 +152,8 @@ def print_battery_levels():
         print(f"Battery state  : {max17.cell_percent:.1f} %")
 
 
-
 bat_counter = 0  # only update the battery every so often
-bat_counter_max = 1024
+bat_counter_max = 0xffff
 def update_battery_levels():
     global bat_counter
     if bat_counter > bat_counter_max:
@@ -144,7 +165,7 @@ def update_battery_levels():
 spi_0 = None
 
 # location in SD card to load scripts from
-DUCKY_DIR = "/sd/DUCKY_SCRIPTS"
+DUCKY_DIR = "/DUCKY_SCRIPTS/"
 
 sd_card_init_success = False
 
@@ -152,13 +173,17 @@ print("Trying SD CARD setup")
 # Initialize SD Card
 try:
     spi_0 = busio.SPI(board.D5, MISO=board.D4, MOSI=board.D8)
+    while not spi_0.try_lock():
+        pass
+    spi_0.configure(baudrate=2400000)
+    spi_0.unlock()
     # spi_0 = busio.SPI(board.SD_CLK, MISO=board.SD_D0, MOSI=board.SD_DI)
-    sdcard = sdcardio.SDCard(spi_0, board.D7, baudrate=2000000)
-    # cs = digitalio.DigitalInOut(board.SD_CS)
-    # sdcard = adafruit_sdcard.SDCard(spi_0, cs)
+    # sdcard = sdcardio.SDCard(spi_0, board.D7, baudrate=2000000)
+    cs = digitalio.DigitalInOut(board.SD_CS)
+    sdcard = adafruit_sdcard.SDCard(spi_0, cs)
     vfs = storage.VfsFat(sdcard)
     time.sleep(0.25)
-    storage.mount(vfs, "/sd")
+    storage.mount(vfs, "/")
     time.sleep(0.75)
     print("SD Card Mounted")
     sd_card_init_success = True
@@ -168,8 +193,8 @@ except OSError as e:
 
 def print_directory(path, tabs=0):
     for file in os.listdir(path):
-        if file == "?":
-            continue  # Issue noted in Learn
+        if file == "?" or file[0] == ".":
+            continue
         stats = os.stat(path + "/" + file)
         filesize = stats[6]
         isdir = stats[0] & 0x4000
@@ -187,18 +212,14 @@ def print_directory(path, tabs=0):
         prettyprintname += file
         if isdir:
             prettyprintname += "/"
-        print('{0:<40} Size: {1:>10}'.format(prettyprintname, sizestr))
+        print('{0:<32} Size: {1:>10}'.format(prettyprintname, sizestr))
 
         # recursively print directory contents
         if isdir:
             print_directory(path + "/" + file, tabs + 1)
 
-
-# print("Files on filesystem:")
-# print("====================")
-# print_directory("/sd/_KEY_DATA/")
 if sd_card_init_success:
-    print_directory("/sd/DUCKY_SCRIPTS/")
+    print_directory("/")
 
 print("continuing setup.")
 
@@ -249,15 +270,16 @@ class Buttons:
 
 
 # Items have a text to display, a function to call and an argument to pass
-# function will be called with agument when selected by eneter button over Menu choice
+# The action function will be called passing in the user_data as an agument
+# when enter button has been pressed over a Menu choice
 class MenuItem:
     def __init__(self, text, action, user_data=None):
         self.text = text
         self.action = action
         self.user_data = user_data
 
-    async def execute(self):
-        await self.action(self.user_data)
+    def execute(self):
+        self.action(self.user_data)
 
 
 # Base class for basic Menu drawing and updating
@@ -273,6 +295,7 @@ class MenuBase:
         self.N_ITEMS = n_items      # set number of items shown on display space
         self.view_start = 0         # Index of the first item visible in the view
         self.selected_index = 0
+        self.pressed = False
         if i2c_ok:
             self.battery_label = label.Label(terminalio.FONT, text=f"BAT:{max17.cell_percent:.1f}%", color=0xA999BE, x=180, y=16, scale=2)
 
@@ -291,29 +314,40 @@ class MenuBase:
         elif self.selected_index >= self.view_start + 5: # 5 is the max items on screen
             self.view_start = self.selected_index - 4
 
-    async def handle_input(self, buttons, display_group):
+    def buttons_released(self, buttons):
+        return not buttons.pressed(Buttons.UP) and not buttons.pressed(Buttons.DOWN) and not buttons.pressed(Buttons.ENTER)
+
+    def handle_input(self, buttons, display_group):
         if i2c_ok:
             update_battery_levels()
             self.battery_label.text = f"BAT:{max17.cell_percent:.1f}%"
 
-        if buttons.pressed(Buttons.UP):
+        if self.pressed and self.buttons_released(buttons):
+            time.sleep(0.01)
+            self.pressed = False
+
+        elif buttons.pressed(Buttons.UP) and not self.pressed:
+            self.pressed = True
             self.selected_index = (self.selected_index - 1) % len(self.items)
-            print("button up:", Buttons.UP, self.selected_index)
+            # print("button up:", Buttons.UP, self.selected_index)
             self._adjust_view()  # Adjust view after changing selection
             self.draw(display_group)
-            await asyncio.sleep(0.2)  # Debounce
+            time.sleep(0.01)
 
-        elif buttons.pressed(Buttons.DOWN):
+        elif buttons.pressed(Buttons.DOWN) and not self.pressed:
+            self.pressed = True
             self.selected_index = (self.selected_index + 1) % len(self.items)
-            print("button down:", Buttons.DOWN, self.selected_index)
+            # print("button down:", Buttons.DOWN, self.selected_index)
             self._adjust_view()  # Adjust view after changing selection
             self.draw(display_group)
-            await asyncio.sleep(0.2)  # Debounce
+            time.sleep(0.01)
 
-        elif buttons.pressed(Buttons.ENTER):
-            await self.items[self.selected_index].execute()
-            print("button enter:", Buttons.ENTER, self.selected_index)
-            await asyncio.sleep(0.2)  # Debounce
+        elif buttons.pressed(Buttons.ENTER) and not self.pressed:
+            self.pressed = True
+            self.items[self.selected_index].execute()
+            # print("button enter:", Buttons.ENTER, self.selected_index)
+            time.sleep(0.01)
+
 
     def draw_items(self, group, *, offset_x=0, offset_y=0):
         if i2c_ok:
@@ -346,22 +380,13 @@ class DuckyMenu(MenuBase):
         self.draw_items(group, offset_x=8)
 
 
-# Special class to test things with...
-class SpecialClass(MenuBase):
-    cool_value = 13
+# Class for implementing USB Host device
+class USBHostMenu(MenuBase):
     def draw(self, group):
-        print("specialClass Draw called", self.cool_value)
         clear_group()
-        text_area = label.Label(terminalio.FONT, text=self.title, color=0x00F000, x=MENU_START_X, y=10, scale=2)
+        text_area = label.Label(terminalio.FONT, text=f"_// {self.title}", color=0x00F000, x=MENU_START_X, y=10, scale=2)
         group.append(text_area)
         self.draw_items(group, offset_x=8)
-
-    # async def load(self, user_data=None):
-    #     print("load something from class method", user_data.title)
-    #     clear_group()
-    #     self.draw(display_group)
-    #     global current_menu
-    #     current_menu = self
 
 
 class SettingsMenu(MenuBase):
@@ -369,75 +394,103 @@ class SettingsMenu(MenuBase):
         print("drawing settings")
         
 
-# simple test function to test things
-async def do_something_with_class(view_class):
-    print("specialClass coolvalue: ", view_class.cool_value)
-
-
 # function calls to load when MenuItems are selected.
-async def do_something(user_data=None):
-    print("Doing Something")
-    clear_group()
-    data = str()
-    if isinstance(user_data, dict):
-        print("ARG STORE", user_data["delaytime"])
-        data = f"{user_data["delaytime"]}" if user_data != None else ""
-    else: 
-        print("user_data:", user_data)
-        data = f"{user_data}" if user_data != None else ""
-    text_area = label.Label(terminalio.FONT, text=f"Doing Something...\n{data}", color=0xF0F0F0, x=0, y=10, scale=2)
-    display_group.append(text_area)
-    if isinstance(user_data, dict):
-        for t in [r for r in range(user_data["delaytime"], 0, -1)]:
-            text_area.text = f"Doing Something...\n{t}"
-            await asyncio.sleep(1)
-    else:
-        await asyncio.sleep(2)
-    main_menu.draw(display_group)
-
-
-# function calls to load when MenuItems are selected.
-async def load_new_menu(user_data=None):
+def load_new_menu(user_data=None):
     print("Loading New Menu")
     print("user_data:", user_data)
     clear_group()
     data = f" {user_data}" if user_data != None else ""
     text_area = label.Label(terminalio.FONT, text=f"New Menu Loaded{data}", color=0xF0F0F0, x=10, y=10, scale=2)
     display_group.append(text_area)
-    await asyncio.sleep(2)
+    time.sleep(0.01)
     main_menu.draw(display_group)
+
+
+def start_kbd_read_task(device, text_area):
+    usb_host_running = True
+    while usb_host_running:
+        try:
+            available = supervisor.runtime.serial_bytes_available
+            if available:
+                c = sys.stdin.read(available)
+                b = ord(bytes(c.encode()))
+                if b == 0x08:  # backspace
+                    text_area.text = text_area.text[:-int(len(c))]
+                elif b == 0x1B: # escape
+                    usb_host_running = False
+                    load_usb_host_screen(None)
+                else:
+                    text_area.text += c
+                    # print(c, end="")
+        except:
+            continue
+        time.sleep(0.01)
+
+
+def read_usb_host_keyboard(device=None):
+    print("reading from usb host as keyboard")
+    global usbhost_menu
+    display_group.pop(-1)
+    text_area = label.Label(terminalio.FONT, text="", color=0xF000F0, x=10, y=50)
+    display_group.append(text_area)
+    start_kbd_read_task(device, text_area)
+
+
+def EmptyFunc(na=None):
+    pass
+
+# function to load and show the USB Host connection
+def load_usb_host_screen(user_data=None):
+    global usbhost_menu, kbdbuf
+    kbdbuf = array.array("B", [0] * 8)
+    menu_items = [
+        MenuItem("< Back", go_back_to, main_menu)
+    ]
+    print("Finding usb devices:")
+    devices = usb.core.find(find_all=True)
+    count = 0
+    time.sleep(0.01)
+    for device in devices:
+        print(f"{device.idVendor:04x}:{device.idProduct:04x}: {device.manufacturer} {device.product}")
+        menu_items.append(
+            MenuItem(f"Read {device.product}", read_usb_host_keyboard, device)
+        )
+        count += 1
+    if count == 0:
+        print("  X No USB devices.")
+        menu_items.append(
+            MenuItem(f"X No USB Devices", EmptyFunc)
+        )
+    usbhost_menu = USBHostMenu("USB Host", menu_items)
+    clear_group()
+    usbhost_menu.draw(display_group)
+    set_current_view(usbhost_menu)
 
 
 # function calls to load when MenuItems are selected.
 # this one loads the ducky menu view
-async def load_ducky_menu(user_data=None):
+def load_ducky_menu(user_data=None):
     global ducky_menu
+    ducky_menu_items = [
+        MenuItem("< Back", go_back_to, main_menu),
+        MenuItem("Load from /SD" if sd_card_init_success else "No SD Card found... :/", load_sd_files, "None"),
+    ]
+    ducky_menu = DuckyMenu("Ducky Menu", ducky_menu_items)
     print("trying to load Ducky Menu")
     print("user_data:", user_data)
     clear_group()
     ducky_menu.draw(display_group)
-    global current_menu
-    current_menu = ducky_menu
+    set_current_view(ducky_menu)
+
 
 
 # this is the call to run the actual ducky script HID command
 # imports are buried here to release from RAM once no longer used.
-async def run_duck(duck_file):
-    import usb_hid
-    from adafruit_hid.keyboard import Keyboard
-    from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
-
-    from dn_ducky import Ducky
-
+def run_duck(duck_file):
     keyboard = Keyboard(usb_hid.devices)
     keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
 
     duck_file = f"{DUCKY_DIR}/{duck_file}"
-
-    from adafruit_progressbar.horizontalprogressbar import (
-        HorizontalProgressBar,
-        HorizontalFillDirection,
-    )
 
     border = 8
     x, y = (border, 108)
@@ -465,18 +518,20 @@ async def run_duck(duck_file):
         progress_bar.value = max(0, min(100, fresult))
         
     print("THE DUCK HAS QUACKED!")
-    await asyncio.sleep(0.1)
+    time.sleep(0.01)
     ducky_menu.draw(display_group)
 
 
 # sd files loader for Ducky Menu
-async def load_sd_files(user_data=None):
+def load_sd_files(user_data=None):
     global ducky_menu
     print("Load SD Card files")
     if sd_card_init_success:
         ducky_menu.items.pop(-1)
         ducks = os.listdir(DUCKY_DIR)
         for duck in ducks:
+            if duck[0] == ".":
+                continue
             print(duck)
             ducky_menu.items.append(MenuItem(duck, run_duck, duck))
         ducky_menu.draw(display_group)
@@ -484,50 +539,60 @@ async def load_sd_files(user_data=None):
     else:
         print("SD CARD NOT INITIALIZED, Check SD Card is present.")
 
-# srsly, does nothing useful..
-async def nothing(user_data=None):
-    print("did nothing...", user_data if user_data else "")
-
-
-
-# for special test class (it didn't go to plan...)
-async def load_something_with_class_obj(user_data=None):
-    print("load something", user_data)
-    clear_group()
-    global specialClass
-    specialClass.draw(display_group)
-    set_current_view(specialClass)
-    # global current_menu
-    # current_menu = specialClass
-
 
 # call to set current view to display
-async def go_back_to(menu_to_return):
+def go_back_to(menu_to_return):
     clear_group()
     global display_group
     menu_to_return.draw(display_group)
-    global current_menu
-    current_menu = menu_to_return
+    set_current_view(menu_to_return)
 
 
-# main async function
-async def main():
-    # global display_group
+def back_menu_item(back_to_menu):
+    return MenuItem("< Back", go_back_to, back_to_menu),
+
+
+def load_wifi_settings_screen(user_data=None):
+    print("load_wifi_settings_screen")
+
+
+def load_wifi_menu_screen(user_data=None):
+    global wifi_menu, main_menu
+    print("load wifi menu screen")
+    clear_group()
+    menu_items = [
+        MenuItem("< Back", go_back_to, main_menu),
+        MenuItem("Settings", load_wifi_settings_screen),
+        MenuItem("Attacks", EmptyFunc),
+        MenuItem("Sniff", EmptyFunc),
+        MenuItem("Connect", EmptyFunc),
+        MenuItem("Start AP", EmptyFunc),
+    ]
+    wifi_menu = Menu("Wifi Menu", menu_items)
+    wifi_menu.draw(display_group)
+    set_current_view(wifi_menu)
+
+
+# function to check for SD card and show contents
+def scan_sd_card(user_data=None):
+    print("trying to scan SD Card")
+    clear_group()
+    
+
+def load_sd_card_menu_screen(user_data=None):
+    print("load sd card menu screen")
+    clear_group()
+
+
+# main starting function
+def main():
     buttons = Buttons()
-
-    cool_test_obj = {"delaytime":60}
 
     main_menu_items = [
         MenuItem("Ducky Script", load_ducky_menu, "DUCKS!"),
-        # MenuItem("Do Something", Settings, settings_menu),
-        MenuItem("Load New Menu", load_new_menu),
-        MenuItem("Item 4", do_something, "TWO"), # reuse a function and pass different argument
-        MenuItem("Item 5", do_something, {"delaytime":30}), # reuse a function and pass different argument
-        MenuItem("Class View", load_something_with_class_obj, "specialClass"),
-        MenuItem("Class View1", load_something_with_class_obj, "option data to pass"),
-        MenuItem("Class View2", load_something_with_class_obj, cool_test_obj),
-        MenuItem("Class View3", load_something_with_class_obj, None),
-        MenuItem("Class View4", load_something_with_class_obj),  # omit the final arg since its optional
+        MenuItem("USB Host (MAX3421e)", load_usb_host_screen),
+        MenuItem("WiFi", load_wifi_menu_screen),
+        MenuItem("SDCard", load_sd_card_menu_screen)
     ]
 
     global main_menu
@@ -535,187 +600,19 @@ async def main():
     main_menu.draw(display_group)
     display.root_group = display_group
     
-    # experimenting with using this system in other views
-    specialClassItems = [
-        MenuItem("< Back", go_back_to, main_menu),
-        MenuItem("one thing", nothing, "1 Nope, no info..."),
-        MenuItem("2 thing", nothing, "2 Yep, some info..."),
-    ]
-
-    global specialClass
-    specialClass = SpecialClass("Special Class", specialClassItems)
-
-    # setup items for the Ducky Menu
-    ducky_menu_items = [
-        MenuItem("< Back", go_back_to, main_menu),
-        MenuItem("Load from /SD" if sd_card_init_success else "No SD Card found... :/", load_sd_files, "None"),
-    ]
-
-    # create the ducky menu view to load later
-    global ducky_menu
-    ducky_menu = DuckyMenu("Ducky Menu", ducky_menu_items)
-
     # set the current_menu to the desired starting view
     global current_menu
     current_menu = main_menu
 
-    # screen fade in with sound
-    # time.sleep(0.1)
-    # time.sleep(0.35)
-    for i in range(BL_PWM_MIN, BL_PWM_MAX, -655):
-        tft_backlight.duty_cycle = i
-        time.sleep(0.00125)
-
-    # global battery_text_area
-    # battery_text_area = label.Label(terminalio.FONT, text=f"BAT:{max17.cell_percent:.1f}%", color=0xCC99DC, x=180, y=16, scale=2)
-    # display_group.append(battery_text_area)
-    # print_battery_levels()
-    
-    print("looping")
     # Main Loop
+    print("looping")
     while True:
-        await current_menu.handle_input(buttons, display_group)
-        await asyncio.sleep(0.01)
+        current_menu.handle_input(buttons, display_group)
+        time.sleep(0.001)
 
-print("started")
-time.sleep(0.001)
-# run the async function
-asyncio.run(main())
+print("starting")
+time.sleep(0.25)
+display_group = displayio.Group()
 
-
-# print("Searching for USB Keyboard...")
-# print("nice!!!")
-# import board
-# import max3421e
-# import time
-# import usb
-
-# # SPI and CS/IRQ pins (Adjust these to your board's wiring)
-# spi = board.SPI()
-# cs = board.USB_SS  # Example: adjust to your actual CS pin
-# irq = board.USB_INT  # Example: adjust to your actual IRQ pin
-
-# # --- Keyboard specific configurations ---
-# # Standard USB HID Keyboard values (common but can vary slightly)
-# # Check your keyboard's actual descriptors if it doesn't work.
-# KEYBOARD_VID = None  # Vendor ID - Set to None to find any keyboard
-# KEYBOARD_PID = None  # Product ID - Set to None to find any keyboard
-
-# host_chip = max3421e.Max3421E(spi, chip_select=cs, irq=irq)
-
-# while True:
-#    print("Finding devices:")
-#    for device in usb.core.find(find_all=True):
-#        print(f"{device.idVendor:04x}:{device.idProduct:04x}: {device.manufacturer} {device.product}")
-#    time.sleep(5)
-
-# # This function is a placeholder for actual key processing
-# def process_keyboard_report(report_buffer):
-#     # A standard USB HID keyboard report is 8 bytes long.
-#     # Byte 0: Modifier keys (Shift, Ctrl, Alt, GUI)
-#     # Byte 1: Reserved (usually 0)
-#     # Bytes 2-7: Up to 6 keycodes pressed simultaneously
-#     print(report_buffer)
-#     # Example: Print raw bytes and try to identify a key
-#     modifier = report_buffer[0]
-#     # Skip report_buffer[1] (reserved)
-#     keycodes = report_buffer[2:]
-
-#     # # Basic parsing example for a single key
-#     # if any(keycodes): # If any key is pressed
-#     #     print(f"Raw HID Report: {report_buffer.hex()}")
-#     #     print(f"  Modifier: 0x{modifier:02X}")
-#     #     print(f"  Keycodes: {[f'0x{k:02X}' for k in keycodes if k != 0]}")
-
-#     #     # You'd typically map keycodes to characters here.
-#     #     # This is where `adafruit_hid.keycode` could be useful.
-#     #     # Example: Keycode for 'A' is 0x04.
-#     #     # if 0x4 in keycodes:
-#     #     #     print("  'A' pressed!")
-#     #     # Add more mappings as needed
-
-#     # elif not any(keycodes): # All keys released
-#     #     print("  All keys released")
-
-# print("work?")
-# device = None
-# while device is None:
-#     try:
-#         # Find a USB device. You can specify vid/pid if known.
-#         # usb.core.find returns an iterable of Device objects
-#         for dev in usb.core.find(find_all=True):
-#             # Check for standard HID keyboard interface (Class 3, SubClass 1, Protocol 1)
-#             # This is a common heuristic, but a full parser would inspect report descriptors.
-#             if dev.bDeviceClass == 0x03 and dev.bDeviceSubClass == 0x01 and dev.bDeviceProtocol == 0x01:
-#                 print(f"Found potential HID keyboard: {dev.idVendor:04x}:{dev.idProduct:04x}")
-#                 device = dev
-#                 break # Found a device, exit loop
-
-#         if device is None:
-#             print("No keyboard found. Retrying in 1 second...")
-#             time.sleep(1)
-
-#     except Exception as e:
-#         print(f"Error during device scan: {e}")
-#         time.sleep(1)
-
-
-# # Once a device is found
-# if device:
-#     print(f"USB Device found: {device.idVendor:04x}:{device.idProduct:04x} - {device.manufacturer} {device.product}")
-
-#     # Try to set configuration (usually the first one)
-#     try:
-#         device.set_configuration()
-#         print("Configuration set.")
-#     except usb.core.USBError as e:
-#         print(f"Could not set configuration: {e}")
-#         # This can happen if the device is already configured or busy
-#         # You might need to reset the device or power cycle the MAX3421E
-
-#     # Find the HID Interrupt IN endpoint
-#     ep_in = None
-#     for cfg in device:
-#         for intf in cfg:
-#             # Check for HID Interface (Class 3)
-#             if intf.bInterfaceClass == 0x03:
-#                 for ep in intf:
-#                     if usb.util.endpoint_direction(ep.bEndpointAddress) == usb.util.ENDPOINT_IN and \
-#                        usb.util.endpoint_type(ep.bEndpointAddress) == usb.util.ENDPOINT_INTERRUPT:
-#                         ep_in = ep
-#                         print(f"Found Interrupt IN Endpoint: 0x{ep_in.bEndpointAddress:02X}")
-#                         break
-#             if ep_in:
-#                 break
-#         if ep_in:
-#             break
-
-#     if not ep_in:
-#         print("No HID Interrupt IN endpoint found for the keyboard.")
-#     else:
-#         print("Listening for keyboard input...")
-#         # Prepare a buffer for the HID report (8 bytes for standard keyboard)
-#         report_buffer = bytearray(ep_in.wMaxPacketSize) # Use endpoint's max packet size
-
-#         while True:
-#             try:
-#                 # Read data from the interrupt endpoint
-#                 # The timeout is important to prevent blocking indefinitely
-#                 data_read = device.read(ep_in.bEndpointAddress, report_buffer, timeout=100) # 100ms timeout
-
-#                 if data_read: # If data was received
-#                     process_keyboard_report(report_buffer)
-
-#             except usb.core.USBError as e:
-#                 if e.errno == 110: # errno 110 is timeout
-#                     # print("No data received (timeout)")
-#                     pass # Expected for interrupt endpoints when no keys are pressed
-#                 else:
-#                     print(f"USB Read Error: {e}")
-#                     # Potentially device disconnected or other issue
-#                     # You might want to re-enumerate or reset here
-#                     break # Exit loop to try and re-find device
-#             except Exception as e:
-#                 print(f"An unexpected error occurred during read: {e}")
-#                 break
-#             time.sleep(0.01) # Small delay to yield to other processes
+if __name__ == "__main__":
+    main()

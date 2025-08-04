@@ -43,10 +43,10 @@
 //--------------------------------------------------------------------+
 
 // GPIO connected to Neopixel data
-#define NEOPIXEL_PIN 8
+#define NEOPIXEL_PIN 2
 
 // Brightness percentage from 1 to 255
-#define NEOPIXEL_BRIGHTNESS 0x10
+#define NEOPIXEL_BRIGHTNESS 0x20
 
 // Number of neopixels
 #define NEOPIXEL_NUMBER 4
@@ -61,7 +61,7 @@
 //--------------------------------------------------------------------+
 
 #define USB_VID 0x239A
-#define USB_PID 0x0058
+#define USB_PID 0x1337
 #define USB_MANUFACTURER "DEEPNET"
 #define USB_PRODUCT "DN KEY PRO v0"
 
@@ -71,6 +71,6 @@
 #define UF2_INDEX_URL "https://deepnet.store/products/dn_key_pro_v0"
 
 // Use favicon
-#define TINYUF2_FAVICON_HEADER "favicon_adafruit_256.h"
+#define TINYUF2_FAVICON_HEADER "favicon_deepnet_256.h"
 
 #endif
