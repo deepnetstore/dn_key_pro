@@ -2,7 +2,8 @@
 ## tinyuf2 board definition files
 
 These files are used by tinyuf2 to define the board pins used.  
-Copy these files into the `tinyuf2/ports/espressif/boards/`  
+- Copy the folder of each board into the `tinyuf2/ports/espressif/boards/`  
+- Copy the `favicon_deepnet_256.h` file to `tinyuf2/src/favicon/`  
 
 Make sure to follow instructions for installing the ESP-IDF using v5.3.2 [ as of JULY 2025 ]  
 
