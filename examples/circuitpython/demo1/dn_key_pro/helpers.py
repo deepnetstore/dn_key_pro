@@ -2,7 +2,7 @@
 from .display import display_group
 
 # empty objects in the group to show
-def clear_group(bool: full = False):
+def clear_group(full=False):
     global display_group
     while len(display_group) > (1 if not full else 0):
         display_group.pop()
