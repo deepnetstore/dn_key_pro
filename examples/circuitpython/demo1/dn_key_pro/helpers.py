@@ -6,10 +6,7 @@ def clear_group(full=False):
     global display_group
     while len(display_group) > (1 if not full else 0):
         display_group.pop()
-
-
-# current_menu = None
-
+        
 
 # storage class for passing as argument in Menu building
 class ArgStore:
