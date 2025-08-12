@@ -15,7 +15,7 @@ from .periferals import spi
 
 # Initialize display
 BL_PWM_MIN = 65534
-BL_PWM_MAX = 0
+BL_PWM_MAX = 65534 * (3/8)
 
 BL_PWM_ON = BL_PWM_MAX
 BL_PWM_OFF = BL_PWM_MIN

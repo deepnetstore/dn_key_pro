@@ -18,7 +18,7 @@ pid = None
 def test_max3421e():
     global device, vid, pid
     print("Finding devices:")
-    time.sleep(0.25)
+    time.sleep(0.5)
     for device in usb.core.find(find_all=True):
         print(f"{device.idVendor:04x}:{device.idProduct:04x}: {device.manufacturer} {device.product}")
         if device == None:
@@ -36,4 +36,4 @@ def test_max3421e():
     return None
 
 # uncomment to Run the test function
-# device = test_max3421e()
+# test_max3421e()

@@ -2,9 +2,9 @@
 from .display import display_group
 
 # empty objects in the group to show
-def clear_group(full=False):
+def clear_group(end_value=1):
     global display_group
-    while len(display_group) > (1 if not full else 0):
+    while len(display_group) > end_value:
         display_group.pop()
         
 
