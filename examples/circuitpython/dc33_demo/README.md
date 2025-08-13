@@ -74,10 +74,10 @@ Enhanced DN-KEY Pro demo featuring comprehensive HID automation, wireless attack
 
 ## Development Notes
 
-This demo showcases the full capabilities of the DN-KEY Pro:
+This demo demonstrates various capabilities of the DN-KEY Pro:
 - Modular code structure with separate components
 - Power bank compatibility for portable use
-- Comprehensive attack vector demonstration
+- Multiple attack vector demonstrations
 - Physical button navigation for standalone operation
 - Error handling and recovery
 - Demo of data exfiltration capabilities
