@@ -31,7 +31,7 @@ The DN-KEY Pro is a custom ESP32-S3-based IoT device designed for prototyping, d
 
 ## Examples
 
-- **DC33 Demo**: Comprehensive demo showcasing all device capabilities
+- **DC33 Demo**: Comprehensive demo showcasing some device capabilities
 - **Basic Tests**: Display, pin, and connectivity tests
 - **Setup Scripts**: Device configuration and setup utilities
 
@@ -55,7 +55,7 @@ The ESP32-S3 is fully reprogrammable and supports multiple development environme
 If your device needs recovery or troubleshooting:
 - Use the recovery tool in `tools/dn_key_pro_recovery.py`
 - Follow the hardware recovery sequences
-- Check the tools README for detailed instructions
+- Check the tools README for instructions
 
 ## Development
 

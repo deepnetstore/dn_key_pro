@@ -1,103 +1,89 @@
-# DN Key DC33 Demo
+# DN-KEY Pro DC33 Demo
 
-Enhanced DN Key demo optimized for speed, visual engagement, and stability.
+**⚠️ DISCLAIMER: This software is for educational and authorized testing purposes ONLY. Users must have explicit permission before testing on any system or network. The authors are not responsible for any misuse, damage, or legal consequences. Use at your own risk and in compliance with all applicable laws and regulations.**
+
+Enhanced DN-KEY Pro demo featuring comprehensive HID automation, wireless attacks, data exfiltration, and web-based remote control.
 
 ## Features
 
 ### Core Capabilities
-- **HID BadUSB**: Execute automated keyboard/mouse commands
-- **Terminal Automation**: cmatrix, htop, system commands with visual effects
+- **HID BadUSB**: Execute Ducky Scripts from SD card with progress tracking
+- **WiFi Attacks**: Evil Twin, SSID Spam, Network Scanning, WiFi Status monitoring
+- **BLE Operations**: Device scanning, Apple Spam attacks
 - **Data Exfiltration**: Chrome password extraction, system information collection
-- **Web Navigation**: Automated browser control with globaldatapolice.com showcase
-- **Mouse Jiggler**: Touch-controlled mouse movement prevention
-- **Visual Feedback**: Enhanced LED animations and color-coded status
+- **Web Control Interface**: Remote OS control via WiFi with OS-specific commands
+- **Mouse Jiggler**: Random mouse movements to prevent screen lock
+- **USB Host**: Read from USB devices as keyboard input
+- **System Status**: Real-time system monitoring and status display
 
-### Performance Optimizations
-- **Fast Execution**: Reduced delays between commands (0.02s typing, 0.05s sequence delays)
-- **Efficient Touch Response**: 0.1s polling rate for responsive control
-- **Optimized HID Commands**: Streamlined key combinations and typing sequences
-- **Visual Engagement**: Rainbow cycles, pulsing effects, and status indicators
-
-### GlobalDataPolice Integration
-- Automated navigation to globaldatapolice.com
-- Demonstration of security commands from the help section
-- Network scanning, process monitoring, and system analysis showcase
-- Enhanced visual feedback during command execution
+### Hardware Integration
+- **Physical Buttons**: Navigate through menus and control functions
+- **OLED Display**: Visual feedback and menu navigation with progress bars
+- **RGB LEDs**: Status indicators and visual effects
+- **WiFi Access Point**: Web interface accessible via device network
+- **SD Card Support**: Load and execute Ducky Scripts from SD card
+- **USB HID**: Full keyboard, mouse, and media control capabilities
 
 ## Hardware Requirements
 
-- DN Key (regular version, not Pro)
-- Touch sensors (TOUCH1, TOUCH2)
-- NeoPixel LEDs (2x on EYES pin)
+- DN-KEY Pro (ESP32-S3 based)
+- Physical buttons (SWITCH_1, SWITCH_2, BOOT0)
+- OLED display (128x64)
+- RGB LEDs (2x on EYES pin)
+- WiFi radio
 - USB HID capability
+- SD card (optional, for Ducky Scripts)
 
 ## Usage
 
-### Touch Controls
-- **Touch 1**: Run next demo sequence (cycles through all demonstrations)
-- **Touch 2**: Toggle mouse jiggler on/off
+### Physical Button Controls
+- **SWITCH_1**: Navigate up/previous menu item
+- **SWITCH_2**: Navigate down/next menu item  
+- **BOOT0**: Select/confirm menu item or action
 
-### Demo Sequences
-1. **Terminal Automation**: Matrix effects, system monitoring
-2. **Chrome Password Dump**: Cross-platform password extraction
-3. **System Info Collection**: Comprehensive system information gathering
-4. **GlobalDataPolice Showcase**: Security command demonstrations
-5. **Web Navigation Demo**: Automated browser control
+### Main Menu Options
+1. **HID BadUSB**: Execute Ducky Scripts from SD card
+2. **WiFi Attacks**: Evil Twin, SSID Spam, Network Scanning
+3. **BLE Ops**: Bluetooth device scanning and Apple Spam
+4. **Data Exfil**: Chrome passwords and system information
+5. **Web Control**: Remote control via web interface
+6. **Mouse Jiggler**: Toggle random mouse movements
+7. **USB Host**: Read from USB devices
+8. **System Status**: Monitor system status
+
+### Web Interface
+- **Connect to WiFi**: Device creates network "DN-KEY-PRO-XXXX"
+- **Access Web Interface**: Visit `http://192.168.4.1` in browser
+- **OS-Specific Controls**: Choose your operating system (macOS, Windows, Linux)
+- **Execute Commands**: Use media controls, custom commands, or mouse jiggler
 
 ### LED Status Indicators
 - **Green**: Ready/Success state
-- **Blue**: Terminal/typing activity
-- **Orange**: Mouse jiggler active
-- **Yellow**: System info collection
-- **Red**: Chrome password extraction
-- **Purple**: Command execution
-- **Rainbow**: Startup/sequence transitions
+- **Blue**: Menu navigation
+- **Orange**: Power bank mode
+- **Red**: Error state
+- **Rainbow**: Startup sequence
+- **Pulsing**: Active functions
 
 ## Installation
 
-1. Copy `dn_key_dc33_demo.py` to your DN Key as `code.py`
-2. Or use the deployment script:
-   ```bash
-   ./deploy_dc33_demo.sh
-   ```
-
-## Technical Details
-
-### Speed Optimizations
-- Typing delay reduced to 0.02s per character
-- Key combination delays optimized to 0.1s
-- Sequence delays minimized to 0.05s
-- Touch polling at 0.1s for responsive control
-
-### Visual Enhancements
-- Rainbow cycle effects for transitions
-- Pulsing patterns for status indication
-- Color-coded activity feedback
-- Smooth LED animations
-
-### Stability Features
-- Exception handling for all demo sequences
-- Automatic recovery from errors
-- Touch input debouncing
-- Safe HID command execution
-
-### Data Exfiltration Capabilities
-- Cross-platform Chrome password extraction (macOS/Linux)
-- Comprehensive system information collection
-- Timestamped file outputs
-- Automatic cleanup of temporary files
-
-## Security Disclaimer
-
-This software is provided for educational and authorized testing purposes only. Users are responsible for ensuring they have proper authorization before using this tool on any system or network. The authors are not responsible for any misuse or damage caused by this software. Use at your own risk and in compliance with applicable laws and regulations.
+1. Copy `code.py` to your DN-KEY Pro device
+2. Optionally add Ducky Scripts to SD card root directory
+3. The device will automatically start with menu system
+4. For web interface: Connect to device's WiFi network and visit `http://192.168.4.1`
 
 ## Development Notes
 
-Based on the DN Key Pro DC33 demo but optimized for the regular DN Key hardware:
-- Adapted for touch-based control instead of menu navigation
-- Enhanced visual feedback using NeoPixel LEDs
-- Streamlined for faster execution and better engagement
-- Integrated globaldatapolice.com command showcase
+This demo showcases the full capabilities of the DN-KEY Pro:
+- Modular code structure with separate components
+- Power bank compatibility for portable use
+- Comprehensive attack vector demonstration
+- Physical button navigation for standalone operation
+- Error handling and recovery
+- Demo of data exfiltration capabilities
+- Integrated web-based remote control interface
+
+For demonstrations, testing, and learning DN-KEY Pro development.
 
 Manifested by 0x0630ff x Made Evil by gh0st
 
