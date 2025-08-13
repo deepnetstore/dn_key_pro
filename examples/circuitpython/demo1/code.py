@@ -44,7 +44,6 @@ from adafruit_progressbar.horizontalprogressbar import (
     HorizontalFillDirection,
 )
 from rainbowio import colorwheel
-# from adafruit_ble import BLERadio
 
 # import local .py files
 from dn_key_pro import *
@@ -64,14 +63,6 @@ do_mouse_jiggle = False
 web_server_running = False
 web_server_socket = None
 mouse_counter = 0
-
-
-# Initialize HID devices
-keyboard = Keyboard(usb_hid.devices)
-keyboard_layout = KeyboardLayoutUS(keyboard)
-mouse = Mouse(usb_hid.devices)
-consumer_control = ConsumerControl(usb_hid.devices)
-
 
 
 # update the current_view variable
@@ -186,7 +177,9 @@ def load_new_menu(user_data=None):
     main_menu.draw(display_group)
 
 
+# not the most efficient code... 
 def start_kbd_read_task(device, text_area):
+    '''Hit escape key to exit the usb host task'''
     usb_host_running = True
     while usb_host_running:
         try:
@@ -249,10 +242,22 @@ def load_usb_host_screen(user_data=None):
 # this one loads the ducky menu view
 def load_ducky_menu(user_data=None):
     global ducky_menu
+
     ducky_menu_items = [
-        MenuItem("< Back", go_back_to, main_menu),
-        MenuItem("Load from /SD" if sd_card_init_success else "No SD Card found... :/", load_sd_files, "/"),
+        MenuItem("< Back", go_back_to, main_menu)
     ]
+    
+    # keyboard = None
+    keyboard = Keyboard(usb_hid.devices, timeout=0.2)
+    if keyboard is None:
+        ducky_menu_items.append(
+            MenuItem("HID init failed", EmptyFunc)
+        )
+    else:
+        ducky_menu_items.append(
+            MenuItem("Load from /SD" if sd_card_init_success else "No SD Card found... :/", load_sd_files, "")
+        )
+
     ducky_menu = DuckyMenu("Ducky Script", ducky_menu_items)
     print("trying to load Ducky Menu")
     print("user_data:", user_data)  # show the argument passed to the MenuItem constructor
@@ -263,58 +268,64 @@ def load_ducky_menu(user_data=None):
 # this is the call to run the actual ducky script HID command
 # imports are buried here to release from RAM once no longer used.
 def run_duck(duck_file):
-    keyboard = Keyboard(usb_hid.devices)
-    keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
-
-    duck_file = f"/{duck_file}"
-
-    border = 8
-    x, y = (border, 108)
-    pwidth, pheight = (224, 10)
-
-    progress_bar = HorizontalProgressBar(
-        (x, y), (pwidth, pheight), direction=HorizontalFillDirection.LEFT_TO_RIGHT
-    )
-
+    global ducky_menu
     clear_group()
+    keyboard = Keyboard(usb_hid.devices, timeout=1)
+    if not keyboard is None:
+        keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
 
-    text_area = label.Label(terminalio.FONT, text=f"File: \n{duck_file}", color=0xF0F0F0, x=20, y=10, scale=2)
-    
-    display_group.append(text_area)
-    display_group.append(progress_bar)
+        duck_file = f"/{duck_file}"
 
-    print("RELEASE THE QUACKING:", duck_file)
-    duck = Ducky(duck_file, keyboard, keyboard_layout)
+        border = 8
+        x, y = (border, 108)
+        pwidth, pheight = (224, 10)
 
-    result = 0
-    while result < 100:
-        result = duck.loop()  # send every char from the text file to USB as HID Keyboard
-        fresult = result if (progress_bar.value < progress_bar.maximum) else progress_bar.maximum
-        progress_bar.value = max(0, min(100, fresult))
+        progress_bar = HorizontalProgressBar(
+            (x, y), (pwidth, pheight), direction=HorizontalFillDirection.LEFT_TO_RIGHT
+        )
+
+        text_area = label.Label(terminalio.FONT, text=f"File: \n{duck_file}", color=0xF0F0F0, x=20, y=10, scale=2)
         
-    print("THE DUCK HAS QUACKED!")
-    time.sleep(0.01)
+        display_group.append(text_area)
+        display_group.append(progress_bar)
+
+        print("RELEASE THE QUACKING:", duck_file)
+        duck = Ducky(duck_file, keyboard, keyboard_layout)
+
+        result = 0
+        while result < 100:
+            result = duck.loop()  # send every char from the text file to USB as HID Keyboard
+            fresult = result if (progress_bar.value < progress_bar.maximum) else progress_bar.maximum
+            progress_bar.value = max(0, min(100, fresult))
+            
+        print("THE DUCK HAS QUACKED!")
+    else:
+        text_area = label.Label(terminalio.FONT, text=f"Not connected, HID initialization failed", color=0xF0F0F0, x=20, y=10, scale=2)
+        display_group.append(text_area)
     ducky_menu.draw(display_group)
 
 
 # sd files loader for Ducky Menu
 def load_sd_files(filespath=None):
     global ducky_menu, sd_files_loaded
-    print("Load SD Card files")
+    print("Load SD Card files:", filespath)
     if sd_card_init_success:
         ducky_menu.items.clear()
-        ducky_menu.items.append(MenuItem("< Back", load_ducky_menu))
         ducky_menu.selected_index = 0
+        ducky_menu.items.append(MenuItem("< Back", load_ducky_menu))
         ducks = os.listdir(filespath)
-        print(ducks)
+        print("DIR:", filespath)
+        print("  >:", ducks)
         for duck in ducks:
-            if duck[0] == "." or duck[0] == "System Volume Information": # hidden files
+            if duck[0] == "." or duck == 'System Volume Information': # hidden files
                 continue
-            stats = os.stat(f"/{duck}")
+            duck_path = f"{filespath+"/" if not None else ''}{duck}"
+            print("duck_path:", duck_path)
+            stats = os.stat(duck_path)
             if (stats[0]>>15==1): # check if file bit is setw
-                ducky_menu.items.append(MenuItem(duck, run_duck, duck))
+                ducky_menu.items.append(MenuItem(duck, run_duck, duck_path))  # bit is a file bit, run the ducky script from this file.
             else:
-                ducky_menu.items.append(MenuItem(f"/{duck}/", load_sd_files, f"/{duck}"))
+                ducky_menu.items.append(MenuItem(f"/{duck}/", load_sd_files, f"{duck_path}"))  # bit is a dir, open it
         ducky_menu.draw(display_group)
     else:
         print("SD CARD NOT INITIALIZED, Check SD Card is present.")
@@ -659,6 +670,7 @@ def start_ble_scan(user_data=None):
 apple_spam_active = False
 apple_spam_count = 0
 apple_spam_last_time = 0
+
 
 def run_apple_spam_background():
     """Run Apple spam in background - called from main loop"""
@@ -1172,7 +1184,7 @@ def stop_evil_twin_ap(user_data=None):
     title_text = label.Label(terminalio.FONT, text="Stop Evil AP", color=NEON_PURPLE, x=10, y=20, scale=2)
     display_group.append(title_text)
     
-    if wifi_ap_active:
+    if wifi_ap_active or wifi.radio.ap_active:
         status_text = "Stopping AP..."
         status_label = label.Label(terminalio.FONT, text=status_text, color=NEON_BLUE, x=10, y=50, scale=1)
         display_group.append(status_label)
@@ -1182,7 +1194,8 @@ def stop_evil_twin_ap(user_data=None):
             if hasattr(wifi.radio, 'stop_ap'):
                 wifi.radio.stop_ap()
             wifi_ap_active = False
-            print("AP stopped")
+            print("AP stopped:", end=" ")
+            print(wifi.radio.ap_active)
             
             # Show success
             clear_group()
@@ -1251,7 +1264,8 @@ def start_ssid_spam(user_data=None):
         try:
             wifi.radio.stop_ap()
             wifi_ap_active = False
-            print("Stopped current AP")
+            print("Stopped current AP:", end=" ")
+            print(wifi.radio.ap_active)
         except Exception as e:
             print(f"Error stopping AP: {e}")
     
@@ -1307,6 +1321,7 @@ def start_ssid_spam(user_data=None):
             # Stop AP
             wifi.radio.stop_ap()
             wifi_ap_active = False
+            print(wifi.radio.ap_active)
             
             # Small delay between SSIDs
             time.sleep(0.5)
@@ -1553,7 +1568,7 @@ def main():
     ]
 
     global main_menu
-    main_menu = MainMenu("DN KEY PRO MENU", main_menu_items)
+    main_menu = MainMenu("DN KEY PRO", main_menu_items)
     main_menu.draw(display_group)
     
     # set the current_menu to the desired starting view
@@ -1562,6 +1577,8 @@ def main():
 
     # Main Loop - faster timing
     print("Starting Defcon Demo...")
+
+    global do_mouse_jiggle
     while True:
         rainbow_cycle(0)  # Increase the number to slow down the rainbow
 
@@ -1571,7 +1588,11 @@ def main():
         run_apple_spam_background()
         
         # Run mouse jiggler if active (simplified for sync operation)
-        if do_mouse_jiggle:
+        if do_mouse_jiggle and not mouse is None:
+            mouse = Mouse(usb_hid.devices, timeout=2)
+            if mouse is None: # no mice connection made.
+                do_mouse_jiggle = False
+                
             global mouse_counter
             mouse_counter += 1
             
@@ -1581,8 +1602,6 @@ def main():
                 y_direction = random.choice([-1, 1]) * random.randint(3, 10)
                 mouse.move(x=x_direction, y=y_direction)
                 mouse_counter = 0
-        
-
         
         # Run web server if active
         if web_server_running:
