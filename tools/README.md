@@ -6,13 +6,19 @@ This directory contains utility tools for the DN-KEY Pro device.
 
 ### dn_key_pro_recovery.py
 
-A comprehensive recovery and testing tool for the DN-KEY Pro ESP32-S3 device.
+A user-friendly recovery and flashing tool for the DN-KEY Pro ESP32-S3 device.
+
+**What it does:**
+1. Erases the device flash memory
+2. Flashes TinyUF2 bootloader
+3. Flashes CircuitPython firmware
+4. Copies a sample code.py file to the device
 
 **Features:**
-- Hardware recovery sequences
-- Software recovery via esptool
-- UF2 flashing with error handling
-- Device detection and monitoring
+- Simple 4-step recovery process
+- Clear configuration variables at the top
+- Robust device detection
+- Color-coded output and logging
 - Cross-platform support (macOS, Linux, Windows*)
 
 **Usage:**
@@ -20,12 +26,41 @@ A comprehensive recovery and testing tool for the DN-KEY Pro ESP32-S3 device.
 # Run comprehensive recovery (recommended)
 python3 dn_key_pro_recovery.py
 
-# Run interactive mode
-python3 dn_key_pro_recovery.py --interactive
-
-# Run comprehensive recovery explicitly
-python3 dn_key_pro_recovery.py --comprehensive
+# Show help
+python3 dn_key_pro_recovery.py --help
 ```
+
+**Configuration:**
+Before running, you **MUST** update the paths at the top of the script:
+
+1. **TINYUF2_DIR**: Path to your TinyUF2 build directory
+   ```python
+   # Example: "/home/user/tinyuf2/ports/espressif"
+   TINYUF2_DIR = "/path/to/your/tinyuf2/ports/espressif"
+   ```
+
+2. **CIRCUITPYTHON_UF2**: Path to your CircuitPython UF2 firmware file
+   ```python
+   # Example: "/home/user/firmware/dn_key_pro_circuitpython.uf2"
+   CIRCUITPYTHON_UF2 = "/path/to/your/circuitpython_firmware.uf2"
+   ```
+
+3. **SAMPLE_CODE**: Path to the sample code.py file to copy to the device
+   ```python
+   # Example: "/home/user/examples/dc33_demo/code.py"
+   SAMPLE_CODE = "/path/to/your/sample_code.py"
+   ```
+
+**Finding the required files:**
+
+- **TinyUF2 files**: These are generated when you build TinyUF2 for the DN-KEY Pro. Look for a directory structure like:
+  ```
+  tinyuf2/ports/espressif/_build/deepnet_key_pro_v0r5/
+  ```
+
+- **CircuitPython UF2**: This is the CircuitPython firmware file for the DN-KEY Pro. It should have a `.uf2` extension.
+
+- **Sample code**: You can use any CircuitPython code file, or copy one from the examples directory.
 
 **Requirements:**
 - Python 3.6+
@@ -37,20 +72,12 @@ python3 dn_key_pro_recovery.py --comprehensive
 - **Linux**: Full support - tested and working
 - **Windows**: Limited support - may require additional drivers and configuration
 
-**What it does:**
-- Detects connected devices (serial, UF2 volumes, USB)
-- Provides step-by-step hardware recovery guidance
-- Attempts firmware flashing via esptool or UF2
-- Monitors device status changes
-- Tests device communication
-- Comprehensive logging for troubleshooting
-
 **When to use:**
 - Device is not responding
 - Firmware needs to be reflashed
 - Device is stuck in bootloader mode
-- Hardware recovery is needed
-- Troubleshooting device connectivity issues
+- Complete device recovery is needed
+- Setting up a new device
 
 ## Installation
 
@@ -59,13 +86,15 @@ python3 dn_key_pro_recovery.py --comprehensive
    ```bash
    pip install esptool pyserial
    ```
-3. Run the recovery tool as needed
+3. **Configure the script**: Update the paths at the top of `dn_key_pro_recovery.py`
+4. Run the recovery tool
 
 ## Troubleshooting
 
+- **Configuration errors**: The script will check all paths and report any issues
 - **Permission errors on Linux**: May need to add user to dialout group
 - **Driver issues on Windows**: May need CH340/ESP32-S3 drivers
-- **Port busy errors**: Device may be running firmware (this is normal)
-- **No devices detected**: Try hardware recovery sequence
+- **Device not detected**: Ensure device is connected and in download mode
+- **Path not found errors**: Double-check that all configured paths exist
 
-For detailed guidance, run the tool in interactive mode.
+For detailed guidance, check the log file created by the script.
