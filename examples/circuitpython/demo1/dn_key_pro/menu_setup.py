@@ -38,7 +38,7 @@ class MenuBase:
         self.view_start = 0         # Index of the first item visible in the view
         self.selected_index = 0
         self.pressed = False
-        self.battery_label = label.Label(terminalio.FONT, text=f"BAT:100.0%", color=0xA999BE, x=180, y=16, scale=2)
+        self.battery_label = label.Label(terminalio.FONT, text=f"BAT:100.0%", color=0xF9F9BE, x=240, y=4, scale=1)
 
     def draw(self, group):
         '''
@@ -60,9 +60,9 @@ class MenuBase:
 
     def handle_input(self, buttons, display_group):
         # uncomment if a battery is soldered
-        # if not max17 is None:
-        #     update_battery_levels()
-        #     self.battery_label.text = f"BAT:{max17.cell_percent:.1f}%"
+        if not max17 is None:
+            update_battery_levels()
+            self.battery_label.text = f"BAT:{max17.cell_percent:.1f}%"
 
         if self.pressed and self.buttons_released(buttons):
             time.sleep(0.15)
@@ -92,7 +92,7 @@ class MenuBase:
 
 
     def draw_items(self, group, *, offset_x=0, offset_y=0):
-        # group.append(self.battery_label)
+        group.append(self.battery_label)
         for i in range(min(self.N_ITEMS, len(self.items))):    # only draw N items at a time
             item_index = self.view_start + i        # update item index to show
             if item_index < len(self.items):        # note: view_start is adjusted on user input

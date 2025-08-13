@@ -22,11 +22,19 @@ except:
 # max17.quick_start = True
 
 def print_battery_levels():   
-    if not max17 is None:
-        print(f"Battery voltage: {max17.cell_voltage:.2f} Volts")
-        print(f"Battery state  : {max17.cell_percent:.1f} %")
+    if max17 is None:
+        return
+    print(f" ")
+    print(f"Battery voltage: {max17.cell_voltage:.2f} Volts")
+    print(f"Battery state  : {max17.cell_percent:.1f} %")
+    print(f"Battery alert max  : {max17.voltage_alert_max:.1f} V")
+    print(f"Battery alert min  : {max17.voltage_alert_min:.1f} V")
+    print(f"Battery activity thresh  : {max17.activity_threshold:.1f} dV")
+    print(f"Battery alert  : {max17.active_alert}")
+    print(f" ")
 
-bat_counter = 0  # only update the battery every so often
+
+bat_counter = 0xfff + 1  # only update the battery every so often
 bat_counter_max = 0xfff
 def update_battery_levels():
     if max17 is None:
