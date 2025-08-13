@@ -79,6 +79,46 @@ Before running, you **MUST** update the paths at the top of the script:
 - Complete device recovery is needed
 - Setting up a new device
 
+### serial_monitor.sh
+
+A bash script for monitoring serial output from the DN-KEY Pro device.
+
+**What it does:**
+- Auto-detects USB serial devices (macOS and Linux)
+- Connects to the first available device
+- Continuously monitors serial output
+- Automatically reconnects if connection is lost
+
+**Features:**
+- Cross-platform support (macOS, Linux)
+- Auto-device detection
+- Clean exit handling
+- Automatic reconnection
+
+**Usage:**
+```bash
+# Run the serial monitor
+./serial_monitor.sh
+
+# Or with bash explicitly
+bash serial_monitor.sh
+```
+
+**Exit options:**
+- **Ctrl+C**: Stop the monitor completely
+- **Ctrl+A then K**: Exit the current screen session (reconnects automatically)
+- **Ctrl+A then D**: Detach from screen session (keeps it running)
+
+**Requirements:**
+- `screen` command (usually pre-installed on macOS/Linux)
+- USB serial device connected
+
+**When to use:**
+- Debugging device output
+- Monitoring CircuitPython print statements
+- Viewing device logs
+- Testing device communication
+
 ## Installation
 
 1. Ensure you have Python 3.6+ installed
