@@ -28,7 +28,7 @@ Enhanced DN-KEY Pro demo featuring comprehensive HID automation, wireless attack
 
 - DN-KEY Pro (ESP32-S3 based)
 - Physical buttons (SWITCH_1, SWITCH_2, BOOT0)
-- OLED display (128x64)
+- SPI 1.47" TFT display (172x320)
 - RGB LEDs (2x on EYES pin)
 - WiFi radio
 - USB HID capability
